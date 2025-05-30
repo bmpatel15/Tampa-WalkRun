@@ -23,7 +23,7 @@ function groupByRegistrantId(participants: Participant[]) {
 export default function CheckInPage() {
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
-  const { participants, checkInFamily, updateParticipant } = useParticipantStore()
+  const { participants, checkInFamily, updateParticipant, fetchParticipants } = useParticipantStore()
 
   // Group by registrantId
   const familyGroups: { registrantId: string; members: Participant[] }[] = groupByRegistrantId(participants)
@@ -45,17 +45,20 @@ export default function CheckInPage() {
   const totalCount = participants.length
 
   // Check in all members of a family
-  const handleCheckInFamily = (registrantId: string) => {
-    checkInFamily(registrantId);
+  const handleCheckInFamily = async (registrantId: string) => {
+    await checkInFamily(registrantId)
+    await fetchParticipants()
     toast({
       title: "Check-in Successful!",
       description: `Family ${registrantId} has been checked in.`,
-    });
+    })
   }
 
   // Check in an individual
-  const handleCheckInIndividual = (registrantId: string, email: string, firstName: string, lastName: string) => {
-    updateParticipant(registrantId, email, firstName, { checkedIn: true })
+  const handleCheckInIndividual = async (registrantId: string, registrationType: string, firstName: string, lastName: string) => {
+    console.log('CheckInPage update:', { registrantId, registrationType, firstName })
+    await updateParticipant(registrantId, registrationType, firstName, { checkedIn: true })
+    await fetchParticipants()
     toast({
       title: "Check-in Successful!",
       description: `Participant ${firstName} ${lastName} has been checked in.`,
@@ -173,7 +176,7 @@ export default function CheckInPage() {
                                   {!member.checkedIn && (
                                     <Button
                                       size="sm"
-                                      onClick={() => handleCheckInIndividual(member.registrantId, member.email, member.firstName, member.lastName)}
+                                      onClick={() => handleCheckInIndividual(member.registrantId, member.registrationType as string, member.firstName, member.lastName)}
                                     >
                                       Check In
                                     </Button>

@@ -16,6 +16,7 @@ import { useParticipantStore } from "@/lib/store"
 export default function RegisterPage() {
   const { toast } = useToast()
   const addParticipant = useParticipantStore((state) => state.addParticipant)
+  const fetchParticipants = useParticipantStore((state) => state.fetchParticipants)
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -29,10 +30,9 @@ export default function RegisterPage() {
     zip: "",
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Add to Zustand store
-    addParticipant({
+    await addParticipant({
       firstName: formData.firstName,
       lastName: formData.lastName,
       registrantId: Math.floor(100000 + Math.random() * 900000).toString(),
@@ -48,12 +48,12 @@ export default function RegisterPage() {
       additionalFamily: 0,
       totalPaid: 0,
       shirts: formData.tshirtSize,
-    })
+    } as any)
+    await fetchParticipants()
     toast({
       title: "Registration Successful!",
       description: `${formData.firstName} ${formData.lastName} has been registered for the walkathon.`,
     })
-    // Reset form
     setFormData({
       firstName: "",
       lastName: "",

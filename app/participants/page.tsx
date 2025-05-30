@@ -2,7 +2,7 @@
 
 import React from "react"
 import Link from "next/link"
-import { ArrowLeft, Search, Filter, Download, Edit, Trash2, CheckCircle, Clock } from "lucide-react"
+import { ArrowLeft, Search, Filter, Download, Edit, Trash2, CheckCircle, Clock, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,14 +10,20 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useParticipantStore, type Participant } from "@/lib/store"
 import { useToast } from "@/hooks/use-toast"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function ParticipantsPage() {
   const [searchTerm, setSearchTerm] = React.useState("")
   const [statusFilter, setStatusFilter] = React.useState("all")
-  const participants = useParticipantStore((state) => state.participants)
+  const { participants, isLoading, error, fetchParticipants } = useParticipantStore()
   const updateParticipant = useParticipantStore((state) => state.updateParticipant)
   const removeParticipant = useParticipantStore((state) => state.removeParticipant)
   const { toast } = useToast()
+
+  // Fetch participants on mount
+  React.useEffect(() => {
+    fetchParticipants()
+  }, [fetchParticipants])
 
   const filteredParticipants = participants.filter((participant) => {
     const matchesSearch =
@@ -38,9 +44,9 @@ export default function ParticipantsPage() {
     console.log("Exporting participant data:", filteredParticipants)
   }
 
-  const deleteParticipant = (participant: Participant) => {
+  const deleteParticipant = async (participant: Participant) => {
     if (window.confirm(`Are you sure you want to delete ${participant.firstName} ${participant.lastName}?`)) {
-      removeParticipant(participant.registrantId, participant.email, participant.firstName)
+      await removeParticipant(participant.registrantId, participant.registrationType as string, participant.firstName)
       toast({
         title: "Participant Deleted",
         description: `${participant.firstName} ${participant.lastName} has been removed from the system.`,
@@ -50,6 +56,19 @@ export default function ParticipantsPage() {
 
   const checkedInCount = participants.filter((p) => p.checkedIn).length
   const totalCount = participants.length
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-100">
+        <div className="container mx-auto px-4 py-8">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-100">
@@ -138,76 +157,83 @@ export default function ParticipantsPage() {
             <CardDescription>Manage all registered participants for the walkathon</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-4">Participant</th>
-                    <th className="text-left p-4">Phone</th>
-                    <th className="text-left p-4">Email</th>
-                    <th className="text-left p-4">Details</th>
-                    <th className="text-left p-4">Status</th>
-                    <th className="text-left p-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredParticipants.map((participant) => (
-                    <tr key={`${participant.registrantId}-${participant.email}-${participant.firstName}`} className="border-b hover:bg-gray-50">
-                      <td className="p-4">
-                        <div>
-                          <div className="font-medium text-gray-900">
-                            {participant.firstName} {participant.lastName}
-                          </div>
-                          <div className="text-sm text-gray-600">ID: {participant.registrantId}</div>
-                        </div>
-                      </td>
-                      <td className="p-4">{participant.phone}</td>
-                      <td className="p-4">{participant.email}</td>
-                      <td className="p-4">
-                        <div className="text-sm">
-                          <div>Type: {participant.registrationType}</div>
-                          <div>Shirt: {participant.shirts}</div>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <Badge variant={participant.checkedIn ? "default" : "secondary"}>
-                          {participant.checkedIn ? (
-                            <>
-                              <CheckCircle className="h-3 w-3 mr-1" /> Checked In
-                            </>
-                          ) : (
-                            <>
-                              <Clock className="h-3 w-3 mr-1" /> Pending
-                            </>
-                          )}
-                        </Badge>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => deleteParticipant(participant)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                          {!participant.checkedIn && (
-                            <Button size="sm" onClick={() => updateParticipant(participant.registrantId, participant.email, participant.firstName, { checkedIn: true })}>
-                              Check In
-                            </Button>
-                          )}
-                        </div>
-                      </td>
+            {isLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4" />
+                <p className="text-gray-600">Loading participants...</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-4">Participant</th>
+                      <th className="text-left p-4">Phone</th>
+                      <th className="text-left p-4">Email</th>
+                      <th className="text-left p-4">Details</th>
+                      <th className="text-left p-4">Status</th>
+                      <th className="text-left p-4">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filteredParticipants.map((participant) => (
+                      <tr key={participant.id} className="border-b hover:bg-gray-50">
+                        <td className="p-4">
+                          <div>
+                            <div className="font-medium text-gray-900">
+                              {participant.firstName} {participant.lastName}
+                            </div>
+                            <div className="text-sm text-gray-600">ID: {participant.registrantId}</div>
+                          </div>
+                        </td>
+                        <td className="p-4">{participant.phone}</td>
+                        <td className="p-4">{participant.email}</td>
+                        <td className="p-4">
+                          <div className="text-sm">
+                            <div>Type: {participant.registrationType}</div>
+                            <div>Shirt: {participant.shirts}</div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <Badge variant={participant.checkedIn ? "default" : "secondary"}>
+                            {participant.checkedIn ? (
+                              <>
+                                <CheckCircle className="h-3 w-3 mr-1" /> Checked In
+                              </>
+                            ) : (
+                              <>
+                                <Clock className="h-3 w-3 mr-1" /> Pending
+                              </>
+                            )}
+                          </Badge>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline">
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => deleteParticipant(participant)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                            {!participant.checkedIn && (
+                              <Button size="sm" onClick={() => updateParticipant(participant.registrantId, participant.registrationType as string, participant.firstName, { checkedIn: true })}>
+                                Check In
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
-            {filteredParticipants.length === 0 && (
+            {!isLoading && filteredParticipants.length === 0 && (
               <div className="text-center py-12">
                 <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No participants found</h3>

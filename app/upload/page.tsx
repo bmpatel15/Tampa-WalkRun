@@ -14,29 +14,28 @@ import { useParticipantStore, type Participant } from "@/lib/store"
 
 // Define the expected column mappings
 const EXPECTED_COLUMNS = {
-  firstName: ['Registrant First Name', 'First Name', 'First', 'FName'],
-  lastName: ['Registrant Last Name', 'Last Name', 'Last', 'LName'],
-  registrantId: ['Registrant ID', 'ID', 'Registration ID', 'RegID'],
-  registrationType: ['Registration Type', 'Type', 'Registrant Type'],
-  address: ['Address', 'Street Address', 'Street'],
-  city: ['City', 'Town', 'Location'],
-  phone: ['Phone', 'Phone Number', 'Contact Number', 'Mobile'],
-  email: ['Email', 'Email Address', 'E-mail'],
-  checkedIn: ['Checked In', 'Check-in', 'Status'],
-  attendees: ['Attendees', 'Number of Attendees', 'Total Attendees'],
-  additionalFamily: ['Additional Family Members', 'Family Members', 'Extra Members'],
-  totalPaid: ['Total Paid', 'Payment', 'Amount Paid'],
-  shirts: ['Shirts', 'T-Shirts', 'T-Shirt Size', 'Shirt Size'],
-  // Add individual shirt size columns
-  shirtLG: ['Shirt LG', 'T-Shirt LG', 'Large'],
-  shirtMD: ['Shirt MD', 'T-Shirt MD', 'Medium'],
-  shirtSM: ['Shirt SM', 'T-Shirt SM', 'Small'],
-  shirtYMD: ['Shirt Y-MD', 'T-Shirt Y-MD', 'Youth Medium'],
-  shirtYXS: ['Shirt Y-XS', 'T-Shirt Y-XS', 'Youth XS'],
-  shirtYSM: ['Shirt Y-SM', 'T-Shirt Y-SM', 'Youth Small'],
-  shirtYLG: ['Shirt Y-LG', 'T-Shirt Y-LG', 'Youth Large'],
-  shirtXL: ['Shirt XL', 'T-Shirt XL', 'Extra Large'],
-  shirtXXL: ['Shirt XXL', 'T-Shirt XXL', '2XL']
+  firstName: ['First Name'],
+  lastName: ['Last Name'],
+  registrantId: ['Registrant Id'],
+  registrationType: ['Registrant Type'],
+  address: ['Address'],
+  city: ['City'],
+  state: ['State / Prov / Zip / Pin'], // map to state
+  phone: ['Phone'],
+  email: ['Email'],
+  checkedIn: ['Checked In'],
+  totalPaid: ['Total Paid'],
+  shirts: ['Shirt Size'],
+  // Individual shirt size columns
+  shirtLG: ['LG'],
+  shirtMD: ['MD'],
+  shirtSM: ['SM'],
+  shirtYMD: ['Y-MD'],
+  shirtYXS: ['Y-XS'],
+  shirtYSM: ['Y-SM'],
+  shirtYLG: ['Y-LG'],
+  shirtXL: ['XL'],
+  shirtXXL: ['XXL'],
 }
 
 // Valid shirt sizes
@@ -50,6 +49,9 @@ export default function UploadPage() {
   const [uploadedData, setUploadedData] = useState<Participant[]>([])
   const [errorMessage, setErrorMessage] = useState("")
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({})
+
+  const addParticipants = useParticipantStore((state) => state.addParticipants)
+  const fetchParticipants = useParticipantStore((state) => state.fetchParticipants)
 
   const handleFileSelect = () => {
     fileInputRef.current?.click()
@@ -140,33 +142,31 @@ export default function UploadPage() {
           setColumnMapping(mapping)
 
           // Process the data rows
-          const processedData = jsonData.slice(1).map((row: unknown) => {
+          const processedData = jsonData.slice(1).map((row: unknown, idx: number) => {
+            const rowArr = row as unknown[]
             const processedRow: Record<string, unknown> = {}
-            
             Object.entries(mapping).forEach(([key, header]) => {
               const index = headers.indexOf(header)
               if (index !== -1) {
-                let value = (row as unknown[])[index] ?? ''
-                
-                // Special handling for certain fields
-                if (key === 'shirts') {
-                  if (value && String(value).trim() !== '') {
-                    value = validateShirtSize(String(value))
-                  } else if (Object.keys(mapping).some(k => k.startsWith('shirt'))) {
-                    value = getShirtSizeFromColumns(row as unknown[], headers, mapping)
-                  } else {
-                    value = 'MD'
-                  }
+                let value = rowArr[index] ?? ''
+                if (key === 'registrantId' || key === 'phone') {
+                  value = String(value)
+                } else if (key === 'registrationType') {
+                  value = value ? String(value) : ''
                 } else if (key === 'checkedIn') {
-                  value = validateCheckedIn(value)
-                } else if (key === 'attendees' || key === 'additionalFamily' || key === 'totalPaid') {
+                  value = String(value).trim().toLowerCase() === 'yes'
+                } else if (key === 'totalPaid') {
                   value = Number(value) || 0
+                } else if (key === 'attendees' || key === 'additionalFamily') {
+                  value = Number(value) || 0
+                } else if (key === 'shirts') {
+                  value = value || getShirtSizeFromColumns(rowArr, headers, mapping)
                 }
-                
                 processedRow[key] = value
               }
             })
-            
+            processedRow['attendees'] = processedRow['attendees'] ?? 1
+            processedRow['additionalFamily'] = processedRow['additionalFamily'] ?? 0
             return processedRow as unknown as Participant
           })
 
@@ -196,7 +196,7 @@ export default function UploadPage() {
     }
   }
 
-  const handleSaveParticipants = () => {
+  const handleSaveParticipants = async () => {
     // Deduplicate by registrantId + firstName + lastName + email + registrationType
     const seen = new Set();
     const deduped = uploadedData.filter((p) => {
@@ -206,17 +206,22 @@ export default function UploadPage() {
       return true;
     });
 
-    const setParticipants = useParticipantStore.setState;
-    setParticipants({ participants: deduped });
-    
-    toast({
-      title: "Participants Saved!",
-      description: "The participants have been saved and are now available for check-in.",
-    });
-    
-    // Clear the upload data
-    setUploadedData([]);
-    setUploadStatus("idle");
+    try {
+      await addParticipants(deduped)
+      await fetchParticipants()
+      toast({
+        title: "Participants Saved!",
+        description: "The participants have been saved and are now available for check-in.",
+      })
+      setUploadedData([])
+      setUploadStatus("idle")
+    } catch (err) {
+      toast({
+        title: "Error Saving Participants",
+        description: err instanceof Error ? err.message : "Failed to save participants.",
+        variant: "destructive",
+      })
+    }
   }
 
   const downloadTemplate = () => {
@@ -362,8 +367,8 @@ export default function UploadPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {uploadedData.map((participant) => (
-                        <tr key={participant.registrantId} className="border-b">
+                      {uploadedData.map((participant, idx) => (
+                        <tr key={idx} className="border-b">
                           {Object.keys(columnMapping).map((key) => (
                             <td key={key} className="p-2">
                               {participant[key as keyof Participant] ?? ''}
