@@ -8,13 +8,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useParticipantStore } from "@/lib/store"
+import { useParticipantStore, type Participant } from "@/lib/store"
+import { useToast } from "@/hooks/use-toast"
 
 export default function ParticipantsPage() {
   const [searchTerm, setSearchTerm] = React.useState("")
   const [statusFilter, setStatusFilter] = React.useState("all")
   const participants = useParticipantStore((state) => state.participants)
   const updateParticipant = useParticipantStore((state) => state.updateParticipant)
+  const removeParticipant = useParticipantStore((state) => state.removeParticipant)
+  const { toast } = useToast()
 
   const filteredParticipants = participants.filter((participant) => {
     const matchesSearch =
@@ -35,10 +38,14 @@ export default function ParticipantsPage() {
     console.log("Exporting participant data:", filteredParticipants)
   }
 
-  const deleteParticipant = (id: string) => {
-    // You can implement a removeParticipant method in the store if needed
-    // For now, this is a placeholder
-    alert('Delete not implemented for real data yet.');
+  const deleteParticipant = (participant: Participant) => {
+    if (window.confirm(`Are you sure you want to delete ${participant.firstName} ${participant.lastName}?`)) {
+      removeParticipant(participant.registrantId, participant.email, participant.firstName)
+      toast({
+        title: "Participant Deleted",
+        description: `${participant.firstName} ${participant.lastName} has been removed from the system.`,
+      })
+    }
   }
 
   const checkedInCount = participants.filter((p) => p.checkedIn).length
@@ -144,8 +151,8 @@ export default function ParticipantsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredParticipants.map((participant, idx) => (
-                    <tr key={participant.registrantId + '-' + participant.email + '-' + idx} className="border-b hover:bg-gray-50">
+                  {filteredParticipants.map((participant) => (
+                    <tr key={`${participant.registrantId}-${participant.email}-${participant.firstName}`} className="border-b hover:bg-gray-50">
                       <td className="p-4">
                         <div>
                           <div className="font-medium text-gray-900">
@@ -180,7 +187,11 @@ export default function ParticipantsPage() {
                           <Button size="sm" variant="outline">
                             <Edit className="h-3 w-3" />
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => deleteParticipant(participant.registrantId)}>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => deleteParticipant(participant)}
+                          >
                             <Trash2 className="h-3 w-3" />
                           </Button>
                           {!participant.checkedIn && (

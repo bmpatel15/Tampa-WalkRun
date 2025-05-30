@@ -28,6 +28,7 @@ interface ParticipantStore {
   checkInParticipant: (id: string) => void
   checkInFamily: (registrantId: string) => void
   clearParticipants: () => void
+  removeParticipant: (registrantId: string, email: string, firstName: string) => void
 }
 
 export const useParticipantStore = create<ParticipantStore>()(
@@ -76,6 +77,13 @@ export const useParticipantStore = create<ParticipantStore>()(
       clearParticipants: () => set((state) => {
         state.participants = []
       }),
+      removeParticipant: (registrantId, email, firstName) => {
+        set((state) => {
+          state.participants = state.participants.filter(
+            (p) => !(p.registrantId === registrantId && p.email === email && p.firstName === firstName)
+          )
+        })
+      },
     })),
     {
       name: 'participant-storage',

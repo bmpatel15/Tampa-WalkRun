@@ -47,7 +47,7 @@ export default function UploadPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "success" | "error">("idle")
   const [uploadProgress, setUploadProgress] = useState(0)
-  const [uploadedData, setUploadedData] = useState<any[]>([])
+  const [uploadedData, setUploadedData] = useState<Participant[]>([])
   const [errorMessage, setErrorMessage] = useState("")
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({})
 
@@ -75,14 +75,14 @@ export default function UploadPage() {
     return mapping
   }
 
-  const getShirtSizeFromColumns = (row: any[], headers: string[], mapping: Record<string, string>): string => {
+  const getShirtSizeFromColumns = (row: unknown[], headers: string[], mapping: Record<string, string>): string => {
     // Check each shirt size column
     for (const size of VALID_SHIRT_SIZES) {
       const columnKey = `shirt${size.replace('-', '')}`
       if (mapping[columnKey]) {
         const index = headers.indexOf(mapping[columnKey])
         if (index !== -1) {
-          const value = row[index]
+          const value = (row as unknown[])[index]
           // Check if the value is 1 or true
           if (value === 1 || value === '1' || value === true || value === 'true') {
             return size
@@ -101,8 +101,9 @@ export default function UploadPage() {
     return 'MD' // Default size if invalid
   }
 
-  const validateCheckedIn = (value: any): boolean => {
+  const validateCheckedIn = (value: unknown): boolean => {
     if (typeof value === 'boolean') return value
+    if (value === null || value === undefined) return false
     const normalizedValue = String(value).trim().toLowerCase()
     return normalizedValue === 'yes' || normalizedValue === 'true' || normalizedValue === '1'
   }
@@ -139,22 +140,20 @@ export default function UploadPage() {
           setColumnMapping(mapping)
 
           // Process the data rows
-          const processedData = jsonData.slice(1).map((row: any) => {
-            const processedRow: any = {}
+          const processedData = jsonData.slice(1).map((row: unknown) => {
+            const processedRow: Record<string, unknown> = {}
             
             Object.entries(mapping).forEach(([key, header]) => {
               const index = headers.indexOf(header)
               if (index !== -1) {
-                let value = row[index] ?? '' // Use empty string as default for undefined/null values
+                let value = (row as unknown[])[index] ?? ''
                 
                 // Special handling for certain fields
                 if (key === 'shirts') {
-                  // Prefer the direct value if present
                   if (value && String(value).trim() !== '') {
                     value = validateShirtSize(String(value))
                   } else if (Object.keys(mapping).some(k => k.startsWith('shirt'))) {
-                    // Otherwise, use the 1/0 logic
-                    value = getShirtSizeFromColumns(row, headers, mapping)
+                    value = getShirtSizeFromColumns(row as unknown[], headers, mapping)
                   } else {
                     value = 'MD'
                   }
@@ -168,20 +167,20 @@ export default function UploadPage() {
               }
             })
             
-            return processedRow as Participant
+            return processedRow as unknown as Participant
           })
 
           setUploadProgress(100)
-          setUploadedData(processedData)
+          setUploadedData(processedData as Participant[])
           setUploadStatus("success")
 
           toast({
             title: "Upload Successful!",
             description: `Successfully imported ${processedData.length} participants from the spreadsheet.`,
           })
-        } catch (error) {
+        } catch (err) {
           setUploadStatus("error")
-          setErrorMessage(error instanceof Error ? error.message : "Failed to process the spreadsheet")
+          setErrorMessage(err instanceof Error ? err.message : "Failed to process the spreadsheet")
         }
       }
 
@@ -191,9 +190,9 @@ export default function UploadPage() {
       }
 
       reader.readAsArrayBuffer(file)
-    } catch (error) {
+    } catch (err) {
       setUploadStatus("error")
-      setErrorMessage("Failed to process the file")
+      setErrorMessage(err instanceof Error ? err.message : "Failed to process the file")
     }
   }
 
@@ -363,11 +362,11 @@ export default function UploadPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {uploadedData.map((participant, index) => (
-                        <tr key={index} className="border-b">
+                      {uploadedData.map((participant) => (
+                        <tr key={participant.registrantId} className="border-b">
                           {Object.keys(columnMapping).map((key) => (
                             <td key={key} className="p-2">
-                              {participant[key]}
+                              {participant[key as keyof Participant] ?? ''}
                             </td>
                           ))}
                         </tr>
