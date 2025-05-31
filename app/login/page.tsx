@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-export default function RegisterPage() {
+export default function LoginPage() {
   const router = useRouter()
-  const [form, setForm] = useState({ name: "", email: "", password: "" })
+  const [form, setForm] = useState({ email: "", password: "" })
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
@@ -21,7 +21,7 @@ export default function RegisterPage() {
     e.preventDefault()
     setLoading(true)
     setError("")
-    const res = await fetch("/api/auth/register", {
+    const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
@@ -29,7 +29,7 @@ export default function RegisterPage() {
     const data = await res.json()
     setLoading(false)
     if (!res.ok) {
-      setError(data.error || "Registration failed")
+      setError(data.error || "Login failed")
       return
     }
     router.push("/")
@@ -39,15 +39,11 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Register</CardTitle>
-          <CardDescription>Create a new account</CardDescription>
+          <CardTitle>Login</CardTitle>
+          <CardDescription>Sign in to your account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" name="name" value={form.name} onChange={handleChange} required />
-            </div>
             <div>
               <Label htmlFor="email">Email</Label>
               <Input id="email" name="email" type="email" value={form.email} onChange={handleChange} required />
@@ -58,11 +54,11 @@ export default function RegisterPage() {
             </div>
             {error && <div className="text-red-600 text-sm">{error}</div>}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Registering..." : "Register"}
+              {loading ? "Logging in..." : "Login"}
             </Button>
           </form>
         </CardContent>
       </Card>
     </div>
   )
-}
+} 

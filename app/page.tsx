@@ -5,11 +5,12 @@ import { Users, UserPlus, Upload, CheckCircle, Calendar, MapPin } from "lucide-r
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useParticipantStore } from "@/lib/store"
-import React from "react"
+import React, { useEffect, useState } from "react"
 
 export default function HomePage() {
   const participants = useParticipantStore((state) => state.participants)
   const fetchParticipants = useParticipantStore((state) => state.fetchParticipants)
+  const [user, setUser] = useState<{ email?: string; name?: string } | null>(null)
   const totalCount = participants.length
   const checkedInCount = participants.filter((p) => p.checkedIn).length
   const remainingCount = totalCount - checkedInCount
@@ -19,21 +20,34 @@ export default function HomePage() {
     fetchParticipants()
   }, [fetchParticipants])
 
+  // Fetch current user on mount
+  useEffect(() => {
+    fetch("/api/auth/user")
+      .then((res) => res.json())
+      .then((data) => setUser(data.user))
+      .catch(() => setUser(null))
+  }, [])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Community Walkathon 2024</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">BAPS Charities Walk-Run</h1>
           <p className="text-xl text-gray-600 mb-6">Registration & Check-in Management System</p>
+          {user && user.email && (
+            <p className="text-sm text-gray-500 mb-4">
+              Signed in as {user.email}
+            </p>
+          )}
           <div className="flex items-center justify-center gap-6 text-sm text-gray-500">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              <span>March 15, 2024</span>
+              <span>June 1, 2025</span>
             </div>
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4" />
-              <span>Central Park</span>
+              <span>Tampa, FL</span>
             </div>
           </div>
         </div>
