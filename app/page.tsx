@@ -5,12 +5,19 @@ import { Users, UserPlus, Upload, CheckCircle, Calendar, MapPin } from "lucide-r
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useParticipantStore } from "@/lib/store"
+import React from "react"
 
 export default function HomePage() {
   const participants = useParticipantStore((state) => state.participants)
+  const fetchParticipants = useParticipantStore((state) => state.fetchParticipants)
   const totalCount = participants.length
   const checkedInCount = participants.filter((p) => p.checkedIn).length
   const remainingCount = totalCount - checkedInCount
+
+  // Fetch participants on mount
+  React.useEffect(() => {
+    fetchParticipants()
+  }, [fetchParticipants])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">

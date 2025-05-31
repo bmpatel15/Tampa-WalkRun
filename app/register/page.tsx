@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React from "react"
 
 import { useState } from "react"
 import Link from "next/link"
@@ -29,6 +29,11 @@ export default function RegisterPage() {
     state: "",
     zip: "",
   })
+
+  // Fetch participants on mount
+  React.useEffect(() => {
+    fetchParticipants()
+  }, [fetchParticipants])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

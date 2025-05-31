@@ -63,11 +63,7 @@ export const useParticipantStore = create<ParticipantStore>()(
             body: JSON.stringify(newParticipants),
           })
           if (!response.ok) throw new Error('Failed to add participants')
-          const data = await response.json()
-          set((state) => {
-            state.participants.push(...data)
-            state.isLoading = false
-          })
+          await get().fetchParticipants()
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to add participants', isLoading: false })
         }
@@ -82,11 +78,7 @@ export const useParticipantStore = create<ParticipantStore>()(
             body: JSON.stringify(participant),
           })
           if (!response.ok) throw new Error('Failed to add participant')
-          const data = await response.json()
-          set((state) => {
-            state.participants.push(data)
-            state.isLoading = false
-          })
+          await get().fetchParticipants()
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to add participant', isLoading: false })
         }
@@ -101,15 +93,7 @@ export const useParticipantStore = create<ParticipantStore>()(
             body: JSON.stringify(data),
           })
           if (!response.ok) throw new Error('Failed to update participant')
-          const updatedData = await response.json()
-          set((state) => {
-            state.participants = state.participants.map((p) =>
-              p.registrantId === registrantId && p.registrationType === registrationType && p.firstName === firstName
-                ? { ...p, ...data }
-                : p
-            )
-            state.isLoading = false
-          })
+          await get().fetchParticipants()
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to update participant', isLoading: false })
         }
@@ -119,6 +103,7 @@ export const useParticipantStore = create<ParticipantStore>()(
         const participant = get().participants.find((p) => p.registrantId === id)
         if (!participant) return
         await get().updateParticipant(id, participant.registrationType as string, participant.firstName, { checkedIn: true })
+        await get().fetchParticipants()
       },
 
       checkInFamily: async (registrantId) => {
@@ -128,6 +113,7 @@ export const useParticipantStore = create<ParticipantStore>()(
             get().updateParticipant(registrantId, member.registrationType as string, member.firstName, { checkedIn: true })
           )
         )
+        await get().fetchParticipants()
       },
 
       clearParticipants: async () => {
@@ -135,7 +121,7 @@ export const useParticipantStore = create<ParticipantStore>()(
         try {
           const response = await fetch('/api/participants', { method: 'DELETE' })
           if (!response.ok) throw new Error('Failed to clear participants')
-          set({ participants: [], isLoading: false })
+          await get().fetchParticipants()
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to clear participants', isLoading: false })
         }
@@ -148,12 +134,7 @@ export const useParticipantStore = create<ParticipantStore>()(
             method: 'DELETE',
           })
           if (!response.ok) throw new Error('Failed to remove participant')
-          set((state) => {
-            state.participants = state.participants.filter(
-              (p) => !(p.registrantId === registrantId && p.registrationType === registrationType && p.firstName === firstName)
-            )
-            state.isLoading = false
-          })
+          await get().fetchParticipants()
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to remove participant', isLoading: false })
         }
